@@ -13,7 +13,7 @@ from MaintSettings_design import Ui_Settings
 from About_design import Ui_AboutFrame
 
 global ver
-ver = '2.0'
+ver = '2.1'
 
 
 class SettingsInit(QtWidgets.QFrame):
