@@ -1,19 +1,32 @@
-import subprocess, sys, os, time
-import psutil
-from winreg import *
-from pygame import mixer
+import os
+import subprocess
+import sys
+import threading
+import time
+import bot_token
+import requests
+import mybot_messages
+
 from datetime import datetime
 from datetime import timedelta
 from shutil import copyfile as cp
+from winreg import *
+
+import psutil
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtCore import QTimer, Qt
+from pygame import mixer
+
+from About_design import Ui_AboutFrame
+from MaintSettings_design import Ui_Settings
 from Maintenance_design_manas import Ui_MainWindow as MainWindowManas
 from Maintenance_design_osh import Ui_MainWindow as MainWindowOsh
-from MaintSettings_design import Ui_Settings
-from About_design import Ui_AboutFrame
 
-global ver
+global ver, bot_status, bot_value, bot_error
 ver = '2.1'
+bot_status = {}
+bot_value = {}
+bot_error = {}
 
 
 class SettingsInit(QtWidgets.QFrame):
@@ -60,7 +73,7 @@ class SettingsInit(QtWidgets.QFrame):
             rKey = OpenKey(aReg, r"Software\IRAM\MAINT\SENSETT")
             for k in self.sens_sett_dic.keys():
                 v = QueryValueEx(rKey, k)[0]
-                self.sens_sett_dic[k] = v
+                self.sens_sett_dic[k] = v.upper()
         except Exception as e:
             Sens.logWrite(self, e)
         # Выводим текст настроек в Settings
@@ -79,10 +92,10 @@ class SettingsInit(QtWidgets.QFrame):
 
     # Привязка датчиков
     def addSens(self):
-        sens = self._sett.sens_addBx.currentText()
+        sens = self._sett.sens_addBx.currentText().upper()
         for k, v in self.sens_sett_dic.items():
             if sens == k:
-                v = self._sett.sens_addLn.text()
+                v = self._sett.sens_addLn.text().upper()
             else:
                 if not v:
                     v = None
@@ -194,7 +207,7 @@ class Window(QtWidgets.QMainWindow):
             }
             self.senLcd = {'TEMP1': self._wdw.tempV1, 'TEMP2': self._wdw.tempV2,
                            'PRES1': self._wdw.presV1, 'PRES2': self._wdw.presV2
-            }
+                           }
             self.senM = {
                 'VIS1': self._wdw.visM1, 'VIS2': self._wdw.visM2, 'VIS3': self._wdw.visM3,
                 'VIS4': self._wdw.visM4, 'VIS5': self._wdw.visM5, 'VIS6': self._wdw.visM6,
@@ -254,6 +267,8 @@ class Window(QtWidgets.QMainWindow):
         if self.prog_sett['SER'] != '0':
             self.prog_sett['PATH'] = os.getcwd() + '\Serial\\'
             self.serInit()
+        # Start Bot
+        self.botInit()
         # заводим часы
         self.dtimeTick()
         # Soundplay monitor
@@ -269,8 +284,12 @@ class Window(QtWidgets.QMainWindow):
         self._wdw.start.clicked.connect(self.goStart)
 
     def main(self):
+        global bot_status, bot_value, bot_error
         if not self.pause:
             try:
+                bot_status.clear()
+                bot_value.clear()
+                bot_error.clear()
                 self.snd_play = 0
                 for sens in self.senS.keys():
                     prog = self.prog_sett
@@ -309,6 +328,9 @@ class Window(QtWidgets.QMainWindow):
                             status.setStyleSheet(self.green)
                             value.setStyleSheet(self.green)
                             snd.setChecked(False)
+                        bot_status.update({sensor: s.status})
+                        bot_value.update({sensor: s.value})
+                        bot_error.update({sensor: s.error})
                 for lcd in self.senLcd.keys():
                     prog = self.prog_sett
                     sensor = self._si.sens_sett_dic[lcd]
@@ -325,13 +347,14 @@ class Window(QtWidgets.QMainWindow):
                             s.presInit()
                         value.setText(s.value)
                         value.setStyleSheet(self.blue)
+                    bot_value.update({sensor: s.value})
             except ValueError as e:
                 Sens.logWrite(self, e)
             if self.lineColor == 1:
                 self.lineColor -= 1
                 self._wdw.infoLn2.setStyleSheet(self.blue)
             elif self.snd_play > 0:
-                self.lineColor +=1
+                self.lineColor += 1
                 self._wdw.infoLn2.setStyleSheet(self.red)
             else:
                 self.lineColor += 1
@@ -395,11 +418,19 @@ class Window(QtWidgets.QMainWindow):
         subprocess.Popen(['notepad.exe', r'LOGs\maintLog.txt'])
 
     def serInit(self):
-        if not self.pause:
-            proc = 'Mserial.exe' in (p.name() for p in psutil.process_iter())
-            if not proc:
-                subprocess.Popen('Mserial.exe')
-        QTimer.singleShot(3000, self.serInit)
+        try:
+            if not self.pause:
+                proc = 'Mserial.exe' in (p.name() for p in psutil.process_iter())
+                if not proc:
+                    subprocess.Popen('Mserial.exe')
+            QTimer.singleShot(3000, self.serInit)
+        except FileNotFoundError as e:
+            Sens.logWrite(self, e)
+
+    def botInit(self):
+        b = Bot()
+        bot_thread = threading.Thread(target=b.mainBot, daemon=True)
+        bot_thread.start()
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
@@ -688,6 +719,101 @@ class Av6():
         except Exception as e:
             Sens.logWrite(self, e)
             self.LOGs = str(e)
+
+
+class Bot():
+    token = bot_token.token
+    global URL
+    URL = 'https://api.telegram.org/bot' + token + '/'
+
+    def __init__(self):
+        self.last_update_id = 0
+        self.error_triger = False
+
+    def get_updates(self):
+        try:
+            url = URL + 'getUpdates'
+            upd = requests.get(url).json()
+            chat_id = upd['result'][-1]['message']['chat']['id']
+            text = upd['result'][-1]['message']['text']
+            try:
+                update_id = upd['result'][-1]['update_id']
+            except IndexError:
+                update_id = 0
+            return update_id, chat_id, text
+        except KeyError:
+            pass
+
+    def send_message(self, chat_id, text):
+        send_text = URL + 'sendMessage?chat_id={}&text={}'.format(chat_id, text)
+        response = requests.get(send_text)
+        return response.json()
+
+    def sendErrors(self, chat_id):
+        if 1 in bot_error.values():
+            errors = []
+            for sens, err in bot_error.items():
+                if err > 0:
+                    errors.append(sens)
+            self.send_message(chat_id, f'ERROR in {errors}')
+
+    def mainBot(self):
+        try:
+            while True:
+                get_mes = self.get_updates()
+                update_id = get_mes[0]
+                chat_id = get_mes[1]
+                text = get_mes[2]
+                if self.error_triger:
+                    self.sendErrors(chat_id)
+                if update_id != self.last_update_id and self.last_update_id == 0:
+                    self.last_update_id = update_id
+                if update_id != self.last_update_id and self.last_update_id != 0:
+                    self.last_update_id = update_id
+                    if text == '/start':
+                        self.send_message(chat_id, mybot_messages.start_text)
+                    # Get list os sensors
+                    elif text[:8] == '/sensors':
+                        sensors = []
+                        for k in bot_value.keys():
+                            sensors.append(k)
+                        self.send_message(chat_id, sensors)
+                    # Get status
+                    elif text[:7] == '/status':
+                        text_list = text.split()
+                        if len(text_list) > 1:
+                            sens = text_list[1].upper()
+                            self.send_message(chat_id, f'Sensor {sens} has status\n{bot_status[sens]}')
+                        else:
+                            self.send_message(chat_id, "Input sensor's name please")
+                    # Get values
+                    elif text[:6] == '/value':
+                        text_list = text.split()
+                        if len(text_list) > 1:
+                            sens = text_list[1].upper()
+                            self.send_message(chat_id, f'Sensor {sens} has value\n{bot_value[sens]}')
+                        else:
+                            self.send_message(chat_id, "Input sensor's name please")
+                    # Get help
+                    elif text == '/help':
+                        self.send_message(chat_id, mybot_messages.help_text)
+                    # Get and Set errors notification
+                    elif text == '/errors':
+                        self.send_message(chat_id, f' Error triger {self.error_triger}')
+                    elif text == '/errors on':
+                        self.error_triger = True
+                        self.send_message(chat_id, f' Error triger set {self.error_triger}')
+                    elif text == '/errors off':
+                        self.error_triger = False
+                        self.send_message(chat_id, f' Error triger set {self.error_triger}')
+                    elif text == '/exit':
+                        self.send_message(chat_id, 'Bye, bye...')
+                        break
+                    else:
+                        self.send_message(chat_id, 'I did not understand you...')
+                time.sleep(5)
+        except KeyError:
+            self.send_message(chat_id, 'Your input is incorrect or something went wrong')
 
 
 if __name__ == "__main__":
