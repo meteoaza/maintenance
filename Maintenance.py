@@ -1,11 +1,6 @@
 import os
 import subprocess
 import sys
-import threading
-import time
-import bot_token
-import requests
-import mybot_messages
 
 from datetime import datetime
 from datetime import timedelta
@@ -22,11 +17,7 @@ from MaintSettings_design import Ui_Settings
 from Maintenance_design_manas import Ui_MainWindow as MainWindowManas
 from Maintenance_design_osh import Ui_MainWindow as MainWindowOsh
 
-global ver, bot_status, bot_value, bot_error
 ver = '2.1'
-bot_status = {}
-bot_value = {}
-bot_error = {}
 
 
 class SettingsInit(QtWidgets.QFrame):
@@ -252,6 +243,9 @@ class Window(QtWidgets.QMainWindow):
             self.repShct.activated.connect(self.openRep)
             self.logShct = QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+L"), self)
             self.logShct.activated.connect(self.openLog)
+            self.bot_status = {}
+            self.bot_value = {}
+            self.bot_error = {}
             self.snd_play = 0
         except Exception as e:
             Sens.logWrite(self, e)
@@ -267,10 +261,9 @@ class Window(QtWidgets.QMainWindow):
         if self.prog_sett['SER'] != '0':
             self.prog_sett['PATH'] = os.getcwd() + '\Serial\\'
             self.serInit()
-        # Start Bot
-        self.botInit()
         # заводим часы
         self.dtimeTick()
+        self.botInit()
         # Soundplay monitor
         self.sndplay()
         # Запуск основного процесса
@@ -284,12 +277,11 @@ class Window(QtWidgets.QMainWindow):
         self._wdw.start.clicked.connect(self.goStart)
 
     def main(self):
-        global bot_status, bot_value, bot_error
         if not self.pause:
             try:
-                bot_status.clear()
-                bot_value.clear()
-                bot_error.clear()
+                self. bot_status = {}
+                self.bot_value = {}
+                self.bot_error ={}
                 self.snd_play = 0
                 for sens in self.senS.keys():
                     prog = self.prog_sett
@@ -328,9 +320,9 @@ class Window(QtWidgets.QMainWindow):
                             status.setStyleSheet(self.green)
                             value.setStyleSheet(self.green)
                             snd.setChecked(False)
-                        bot_status.update({sensor: s.status})
-                        bot_value.update({sensor: s.value})
-                        bot_error.update({sensor: s.error})
+                        self.bot_status.update({sensor: s.status})
+                        self.bot_value.update({sensor: s.value})
+                        self.bot_error.update({sensor: s.error})
                 for lcd in self.senLcd.keys():
                     prog = self.prog_sett
                     sensor = self._si.sens_sett_dic[lcd]
@@ -347,7 +339,7 @@ class Window(QtWidgets.QMainWindow):
                             s.presInit()
                         value.setText(s.value)
                         value.setStyleSheet(self.blue)
-                    bot_value.update({sensor: s.value})
+                    self.bot_value.update({sensor: s.value})
             except ValueError as e:
                 Sens.logWrite(self, e)
             if self.lineColor == 1:
@@ -428,9 +420,17 @@ class Window(QtWidgets.QMainWindow):
             Sens.logWrite(self, e)
 
     def botInit(self):
-        b = Bot()
-        bot_thread = threading.Thread(target=b.mainBot, daemon=True)
-        bot_thread.start()
+        if not self.pause:
+            data = {'status': self.bot_status, 'value': self.bot_value, 'error': self.bot_error}
+            with open('bot_data.txt', 'w')as f:
+                f.write(str(data))
+            try:
+                bot_proc = 'bot.exe' in (p.name() for p in psutil.process_iter())
+                if not bot_proc:
+                    subprocess.Popen('bot.exe')
+            except FileNotFoundError:
+                pass
+        QTimer.singleShot(5000, self.botInit)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
