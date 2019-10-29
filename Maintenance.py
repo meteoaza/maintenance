@@ -426,12 +426,12 @@ class Window(QtWidgets.QMainWindow):
     def botInit(self):
         if not self.pause:
             data = {'status': self.bot_status, 'value': self.bot_value, 'error': self.bot_error}
-            with open('bot_data.txt', 'w')as f:
+            with open(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot_data.txt', 'w')as f:
                 f.write(str(data))
             try:
                 bot_proc = 'bot.exe' in (p.name() for p in psutil.process_iter())
                 if not bot_proc:
-                    subprocess.Popen('bot.exe')
+                    subprocess.Popen(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot.exe')
             except FileNotFoundError:
                 pass
         QTimer.singleShot(3000, self.botInit)
