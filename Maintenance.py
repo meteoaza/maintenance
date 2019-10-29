@@ -30,7 +30,7 @@ class SettingsInit(QtWidgets.QFrame):
         self._sett.stationBx.addItems([' ', 'UCFM', 'UCFO'])
         self.prog_sett_list = [
             'STATION', 'PATH', 'SNDPATH', 'AVPATH', 'DUR',
-            'REFRESH', 'REP_W', 'AV_W', 'AV_T1', 'AV_T2', 'SER'
+            'REFRESH', 'REP_W', 'AV_W', 'AV_T1', 'AV_T2', 'SER','BOT'
         ]
         self.sens_sett_list = [
             'CLD1', 'CLD2', 'CLD3', 'CLD4', 'VIS1', 'VIS2', 'VIS3',
@@ -79,6 +79,7 @@ class SettingsInit(QtWidgets.QFrame):
         self._sett.av6_writeCh.setCheckState(int(self.prog_sett_dic['AV_W']))
         self._sett.av6_time1Ln.setText(self.prog_sett_dic['AV_T1'])
         self._sett.av6_time2Ln.setText(self.prog_sett_dic['AV_T2'])
+        self._sett.botCh.setCheckState(int(self.prog_sett_dic['BOT']))
         self.viewSens()
 
     # Привязка датчиков
@@ -113,6 +114,7 @@ class SettingsInit(QtWidgets.QFrame):
         self.prog_sett_dic['AV_W'] = str(self._sett.av6_writeCh.checkState())
         self.prog_sett_dic['AV_T1'] = self._sett.av6_time1Ln.text()
         self.prog_sett_dic['AV_T2'] = self._sett.av6_time2Ln.text()
+        self.prog_sett_dic['BOT'] = str(self._sett.botCh.checkState())
         # Пишем настройки программы в реестр
         aReg = ConnectRegistry(None, HKEY_CURRENT_USER)
         try:
@@ -263,7 +265,9 @@ class Window(QtWidgets.QMainWindow):
             self.serInit()
         # заводим часы
         self.dtimeTick()
-        self.botInit()
+        # Запуск Бота
+        if self.prog_sett['BOT'] != '0':
+            self.botInit()
         # Soundplay monitor
         self.sndplay()
         # Запуск основного процесса
@@ -430,7 +434,7 @@ class Window(QtWidgets.QMainWindow):
                     subprocess.Popen('bot.exe')
             except FileNotFoundError:
                 pass
-        QTimer.singleShot(5000, self.botInit)
+        QTimer.singleShot(3000, self.botInit)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
