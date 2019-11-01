@@ -292,18 +292,19 @@ class SerialWindow(QtWidgets.QMainWindow):
                         buf = ser.readline().strip()
                     else:
                         buf = ser.readline().rstrip()
-                    data = buf.decode('utf-8')
+                    data = buf.decode('ASCII')
                 except Exception as e:
                     self.logWrite(f'comListen_0 {e}')
-                if not data:
-                    pass
-                else:
+                    data = False
+                if data:
                     text = [data, port_args[0], port_args[5], port_args[6]]
                     # Инициализация записи в файл и вывод на gui
                     self.thread.getData(text)
                     self.dataSort(text)
                     if port_args[7]:
                         self.writeArh(text)
+                else:
+                    pass
                 time.sleep(1)
         except Exception as e:
             self.logWrite(f'comListen_1 {e}')

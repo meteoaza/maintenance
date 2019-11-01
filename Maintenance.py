@@ -17,6 +17,14 @@ from MaintSettings_design import Ui_Settings
 from Maintenance_design_manas import Ui_MainWindow as MainWindowManas
 from Maintenance_design_osh import Ui_MainWindow as MainWindowOsh
 
+import pyttsx3
+tts = pyttsx3.init()
+voices = tts.getProperty('voices')
+for voice in voices:
+    if voice.name == 'Aleksandr':
+        tts.setProperty('voice', voice.id)
+        tts.setProperty('rate', 200)
+
 ver = '2.1'
 
 
@@ -157,6 +165,8 @@ class SettingsInit(QtWidgets.QFrame):
         self.win.exit.clicked.connect(self.w.close)
 
     def goWindow(self):
+        tts.say('Уже всЁ настроил? Ну ты красавчик')
+        tts.runAndWait()
         self.close()
         Window().show()
 
@@ -253,6 +263,8 @@ class Window(QtWidgets.QMainWindow):
             Sens.logWrite(self, e)
 
     def goStart(self):
+        tts.say('Запускаемся. От винта!!!')
+        tts.runAndWait()
         self.pause = False
         self.lineColor = 1
         self._wdw.start.setText("Пауза")
@@ -274,6 +286,8 @@ class Window(QtWidgets.QMainWindow):
         self.main()
 
     def statPause(self):
+        tts.say('Астанавиите, Вите надо выйти')
+        tts.runAndWait()
         self.pause = True
         self._wdw.start.setText("Пуск")
         self._wdw.start.setStyleSheet(self.red)
@@ -312,11 +326,13 @@ class Window(QtWidgets.QMainWindow):
                             value.setStyleSheet(self.red)
                             if not snd.isChecked():
                                 self.snd_play += 1
+                                self.snd_text = s.status
                         elif s.error == 2:
                             status.setStyleSheet(self.yellow)
                             value.setStyleSheet(self.yellow)
                             if not snd.isChecked():
                                 self.snd_play += 1
+                                self.snd_text = s.status
                         elif s.error == 3:
                             status.setStyleSheet(self.red)
                             value.setStyleSheet(self.red)
@@ -362,10 +378,12 @@ class Window(QtWidgets.QMainWindow):
             if self._wdw.btn.isChecked():
                 pass
             elif self.snd_play > 0:
-                mixer.init()
-                mixer.music.load(self.prog_sett['SNDPATH'])
-                mixer.music.play()
-        QTimer.singleShot(5000, self.sndplay)
+                tts.say(self.snd_text)
+                tts.runAndWait()
+                # mixer.init()
+                # mixer.music.load(self.prog_sett['SNDPATH'])
+                # mixer.music.play()
+        QTimer.singleShot(3000, self.sndplay)
 
     def dtimeTick(self):
         if not self.pause:
@@ -377,6 +395,8 @@ class Window(QtWidgets.QMainWindow):
                     path = s['AVPATH']
                     av = Av6(path)
                     self._wdw.infoLn1.setText(av.av6_rep)
+                    tts.say(av.av6_rep)
+                    tts.runAndWait()
             if s['REP_W'] == '2' or s['REP_W'] == '1':
                 repW = "Вкл"
             else:
@@ -406,9 +426,13 @@ class Window(QtWidgets.QMainWindow):
 
     def putty(self, n):
         subprocess.Popen(['putty.exe', '-load', n])
+        tts.say('Подключаемся')
+        tts.runAndWait()
 
     def openRep(self):
         subprocess.Popen(['notepad.exe', r'LOGs\maintReport.txt'])
+        tts.say('Вот тебе отчет')
+        tts.runAndWait()
 
     def openLog(self):
         subprocess.Popen(['notepad.exe', r'LOGs\maintLog.txt'])
@@ -419,31 +443,38 @@ class Window(QtWidgets.QMainWindow):
                 proc = 'Mserial.exe' in (p.name() for p in psutil.process_iter())
                 if not proc:
                     subprocess.Popen('Mserial.exe')
+                    tts.say('Запускаю опрос портов')
+                    tts.runAndWait()
             QTimer.singleShot(3000, self.serInit)
         except FileNotFoundError as e:
             Sens.logWrite(self, e)
 
     def botInit(self):
-        if not self.pause:
-            data = {'status': self.bot_status, 'value': self.bot_value, 'error': self.bot_error}
-            with open(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot_data.txt', 'w')as f:
-                f.write(str(data))
-            # try:
-            #     bot_proc = 'bot.exe' in (p.name() for p in psutil.process_iter())
-            #     if not bot_proc:
-            #         subprocess.Popen(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot.exe')
-            # except FileNotFoundError:
-            #     pass
-        QTimer.singleShot(3000, self.botInit)
+        pass
+        # if not self.pause:
+        #     data = {'status': self.bot_status, 'value': self.bot_value, 'error': self.bot_error}
+        #     with open(r'c:\Users\Meteoaza\PycharmProjects\myBot\DATA\bot_data.txt', 'w')as f:
+        #         f.write(str(data))
+        #     # try:
+        #     #     bot_proc = 'bot.exe' in (p.name() for p in psutil.process_iter())
+        #     #     if not bot_proc:
+        #     #         subprocess.Popen(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot.exe')
+        #     # except FileNotFoundError:
+        #     #     pass
+        # QTimer.singleShot(3000, self.botInit)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
+            tts.say('Дасвидоос')
+            tts.runAndWait()
             self.close()
 
     def goSett(self):
         self.statPause()
         self.close()
         SettingsInit().show()
+        tts.say('Хочешь поковырять настройки?')
+        tts.runAndWait()
 
 
 class Sens():
