@@ -18,14 +18,19 @@ from Maintenance_design_manas import Ui_MainWindow as MainWindowManas
 from Maintenance_design_osh import Ui_MainWindow as MainWindowOsh
 
 import pyttsx3
-tts = pyttsx3.init()
-voices = tts.getProperty('voices')
-for voice in voices:
-    if voice.name == 'Aleksandr':
-        tts.setProperty('voice', voice.id)
-        tts.setProperty('rate', 200)
 
 ver = '2.1'
+
+class VoicePlay():
+    def __init__(self, name='Aleksandr', rate=200, text):
+        tts = pyttsx3.init()
+        voices = tts.getProperty('voices')
+        for voice in voices:
+            if voice.name == name:
+                tts.setProperty('voice', voice.id)
+                tts.setProperty(rate, 200)
+        tts.say(text)
+        tts.runAndWait()
 
 
 class SettingsInit(QtWidgets.QFrame):
@@ -165,8 +170,7 @@ class SettingsInit(QtWidgets.QFrame):
         self.win.exit.clicked.connect(self.w.close)
 
     def goWindow(self):
-        tts.say('Уже всЁ настроил? Ну ты красавчик')
-        tts.runAndWait()
+        VoicePlay('Уже всЁ настроил? Ну ты красавчик')
         self.close()
         Window().show()
 
@@ -263,8 +267,7 @@ class Window(QtWidgets.QMainWindow):
             Sens.logWrite(self, e)
 
     def goStart(self):
-        tts.say('Запускаемся. От винта!!!')
-        tts.runAndWait()
+        VoicePlay('Запускаемся. От винта!!!')
         self.pause = False
         self.lineColor = 1
         self._wdw.start.setText("Пауза")
@@ -281,13 +284,12 @@ class Window(QtWidgets.QMainWindow):
         if self.prog_sett['BOT'] != '0':
             self.botInit()
         # Soundplay monitor
-        self.sndplay()
+        self.sndPlay()
         # Запуск основного процесса
         self.main()
 
     def statPause(self):
-        tts.say('Астанавиите, Вите надо выйти')
-        tts.runAndWait()
+        VoicePlay('Астанавиите, Вите надо выйти')
         self.pause = True
         self._wdw.start.setText("Пуск")
         self._wdw.start.setStyleSheet(self.red)
@@ -373,17 +375,16 @@ class Window(QtWidgets.QMainWindow):
                 self._wdw.infoLn2.setStyleSheet(self.green)
             QTimer.singleShot(int(self.prog_sett['REFRESH']), self.main)
 
-    def sndplay(self):
+    def sndPlay(self):
         if not self.pause:
             if self._wdw.btn.isChecked():
                 pass
             elif self.snd_play > 0:
-                tts.say(self.snd_text)
-                tts.runAndWait()
+                VoicePlay(self.snd_text)
                 # mixer.init()
                 # mixer.music.load(self.prog_sett['SNDPATH'])
                 # mixer.music.play()
-        QTimer.singleShot(3000, self.sndplay)
+        QTimer.singleShot(5000, self.sndPlay)
 
     def dtimeTick(self):
         if not self.pause:
@@ -465,16 +466,14 @@ class Window(QtWidgets.QMainWindow):
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
-            tts.say('Дасвидоос')
-            tts.runAndWait()
+            VoicePlay('Дасвидоос')
             self.close()
 
     def goSett(self):
         self.statPause()
         self.close()
         SettingsInit().show()
-        tts.say('Хочешь поковырять настройки?')
-        tts.runAndWait()
+        VoicePlay('Хочешь поковырять настройки?')
 
 
 class Sens():
