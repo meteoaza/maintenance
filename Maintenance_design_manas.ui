@@ -321,7 +321,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>LT5</string>
+         <string>VIS5</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -366,7 +366,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT1</string>
+         <string>WIND1</string>
         </property>
         <property name="statusTip">
          <string/>
@@ -423,7 +423,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT3</string>
+         <string>WIND3</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -468,7 +468,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>CL3</string>
+         <string>CLD3</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -513,7 +513,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>CL2</string>
+         <string>CLD2</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -610,7 +610,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>LT2</string>
+         <string>VIS2</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -655,7 +655,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>CL4</string>
+         <string>CLD4</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -706,7 +706,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT2</string>
+         <string>TEMP2</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -751,7 +751,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT4</string>
+         <string>WIND4</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -832,7 +832,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>LT6</string>
+         <string>VIS6</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -877,7 +877,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT6</string>
+         <string>WIND6</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -970,7 +970,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>CL1</string>
+         <string>CLD1</string>
         </property>
         <property name="autoFillBackground">
          <bool>false</bool>
@@ -1047,7 +1047,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>LT4</string>
+         <string>VIS4</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -1092,7 +1092,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT5</string>
+         <string>WIND5</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -1137,7 +1137,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>LT3</string>
+         <string>VIS3</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -1182,7 +1182,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT2</string>
+         <string>WIND2</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -1239,8 +1239,11 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
           <bold>true</bold>
          </font>
         </property>
+        <property name="acceptDrops">
+         <bool>false</bool>
+        </property>
         <property name="toolTip">
-         <string>LT1</string>
+         <string>VIS1</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -1291,7 +1294,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT1</string>
+         <string>TEMP1</string>
         </property>
         <property name="statusTip">
          <string/>
@@ -1354,7 +1357,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT1</string>
+         <string>PRES1</string>
         </property>
         <property name="statusTip">
          <string/>
@@ -1417,7 +1420,7 @@ background-color: qconicalgradient(cx:1, cy:0.329773, angle:0, stop:0.164773 rgb
          </font>
         </property>
         <property name="toolTip">
-         <string>WT2</string>
+         <string>PRES2</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>

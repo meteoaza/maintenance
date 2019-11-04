@@ -21,17 +21,6 @@ import pyttsx3
 
 ver = '2.1'
 
-class VoicePlay():
-    def __init__(self, name='Aleksandr', rate=200, text):
-        tts = pyttsx3.init()
-        voices = tts.getProperty('voices')
-        for voice in voices:
-            if voice.name == name:
-                tts.setProperty('voice', voice.id)
-                tts.setProperty(rate, 200)
-        tts.say(text)
-        tts.runAndWait()
-
 
 class SettingsInit(QtWidgets.QFrame):
 
@@ -42,8 +31,8 @@ class SettingsInit(QtWidgets.QFrame):
         # Список станций в настройках
         self._sett.stationBx.addItems([' ', 'UCFM', 'UCFO'])
         self.prog_sett_list = [
-            'STATION', 'PATH', 'SNDPATH', 'AVPATH', 'DUR',
-            'REFRESH', 'REP_W', 'AV_W', 'AV_T1', 'AV_T2', 'SER','BOT'
+            'STATION', 'PATH', 'SNDPATH', 'VOICE_NAME', 'VOICE_RATE', 'DUR',
+            'REFRESH', 'AVPATH', 'AV_T1', 'AV_T2', 'REP_W', 'AV_W', 'SER','BOT'
         ]
         self.sens_sett_list = [
             'CLD1', 'CLD2', 'CLD3', 'CLD4', 'VIS1', 'VIS2', 'VIS3',
@@ -58,7 +47,10 @@ class SettingsInit(QtWidgets.QFrame):
         self._sett.buttOK.rejected.connect(lambda: self.close())
         self._sett.buttHelp.clicked.connect(self.help)
         self._sett.sens_addBt.clicked.connect(self.addSens)
-        self._sett.sound_testBt.clicked.connect(self.sndTest)
+        self._sett.sound_testBt.clicked.connect(lambda: self.musicPlay(self.prog_sett_dic['SNDPATH']))
+        self._sett.voice_testBt.clicked.connect(lambda: self.voiceTest())
+        self.tts = pyttsx3.init()
+        self.mix = mixer.init()
         self.readSettings()
 
     def readSettings(self):
@@ -67,7 +59,10 @@ class SettingsInit(QtWidgets.QFrame):
         try:
             rKey = OpenKey(aReg, r"Software\IRAM\MAINT\PROGSETT")
             for k in self.prog_sett_dic.keys():
-                v = QueryValueEx(rKey, k)[0]
+                try:
+                    v = QueryValueEx(rKey, k)[0]
+                except Exception:
+                    v = '0'
                 self.prog_sett_dic[k] = v
         except (ValueError, FileNotFoundError)as e:
             Sens.logWrite(self, e)
@@ -76,24 +71,33 @@ class SettingsInit(QtWidgets.QFrame):
         try:
             rKey = OpenKey(aReg, r"Software\IRAM\MAINT\SENSETT")
             for k in self.sens_sett_dic.keys():
-                v = QueryValueEx(rKey, k)[0]
+                try:
+                    v = QueryValueEx(rKey, k)[0]
+                except Exception:
+                    v = ''
                 self.sens_sett_dic[k] = v.upper()
-        except Exception as e:
+        except (ValueError, FileNotFoundError) as e:
             Sens.logWrite(self, e)
         # Выводим текст настроек в Settings
-        self._sett.stationLb.setText(self.prog_sett_dic['STATION'])
-        self._sett.sens_pathLn.setText(self.prog_sett_dic['PATH'])
-        self._sett.sound_pathLn.setText(self.prog_sett_dic['SNDPATH'])
-        self._sett.f_waitLn.setText(self.prog_sett_dic['DUR'])
-        self._sett.refresh_timeLn.setText(self.prog_sett_dic['REFRESH'])
-        self._sett.av6_pathLn.setText(self.prog_sett_dic['AVPATH'])
-        self._sett.rep_writeCh.setCheckState(int(self.prog_sett_dic['REP_W']))
-        self._sett.mserialCh.setCheckState(int(self.prog_sett_dic['SER']))
-        self._sett.av6_writeCh.setCheckState(int(self.prog_sett_dic['AV_W']))
-        self._sett.av6_time1Ln.setText(self.prog_sett_dic['AV_T1'])
-        self._sett.av6_time2Ln.setText(self.prog_sett_dic['AV_T2'])
-        self._sett.botCh.setCheckState(int(self.prog_sett_dic['BOT']))
+        try:
+            self._sett.stationLb.setText(self.prog_sett_dic['STATION'])
+            self._sett.sens_pathLn.setText(self.prog_sett_dic['PATH'])
+            self._sett.sound_pathLn.setText(self.prog_sett_dic['SNDPATH'])
+            self._sett.voice_nameLn.setText(self.prog_sett_dic['VOICE_NAME'])
+            self._sett.voice_rateLn.setText(self.prog_sett_dic['VOICE_RATE'])
+            self._sett.f_waitLn.setText(self.prog_sett_dic['DUR'])
+            self._sett.refresh_timeLn.setText(self.prog_sett_dic['REFRESH'])
+            self._sett.av6_pathLn.setText(self.prog_sett_dic['AVPATH'])
+            self._sett.av6_time1Ln.setText(self.prog_sett_dic['AV_T1'])
+            self._sett.av6_time2Ln.setText(self.prog_sett_dic['AV_T2'])
+            self._sett.rep_writeCh.setCheckState(int(self.prog_sett_dic['REP_W']))
+            self._sett.av6_writeCh.setCheckState(int(self.prog_sett_dic['AV_W']))
+            self._sett.mserialCh.setCheckState(int(self.prog_sett_dic['SER']))
+            self._sett.botCh.setCheckState(int(self.prog_sett_dic['BOT']))
+        except KeyError as e:
+            Sens.logWrite(self, e)
         self.viewSens()
+        self.voiceSett(self.prog_sett_dic['VOICE_NAME'], int(self.prog_sett_dic['VOICE_RATE']))
 
     # Привязка датчиков
     def addSens(self):
@@ -119,14 +123,16 @@ class SettingsInit(QtWidgets.QFrame):
         self.prog_sett_dic['STATION'] = self._sett.stationLb.text()
         self.prog_sett_dic['PATH'] = self._sett.sens_pathLn.text()
         self.prog_sett_dic['SNDPATH'] = self._sett.sound_pathLn.text()
+        self.prog_sett_dic['VOICE_NAME'] = self._sett.voice_nameLn.text()
+        self.prog_sett_dic['VOICE_RATE'] = self._sett.voice_rateLn.text()
         self.prog_sett_dic['DUR'] = self._sett.f_waitLn.text()
         self.prog_sett_dic['REFRESH'] = self._sett.refresh_timeLn.text()
         self.prog_sett_dic['AVPATH'] = self._sett.av6_pathLn.text()
-        self.prog_sett_dic['REP_W'] = str(self._sett.rep_writeCh.checkState())
-        self.prog_sett_dic['SER'] = str(self._sett.mserialCh.checkState())
-        self.prog_sett_dic['AV_W'] = str(self._sett.av6_writeCh.checkState())
         self.prog_sett_dic['AV_T1'] = self._sett.av6_time1Ln.text()
         self.prog_sett_dic['AV_T2'] = self._sett.av6_time2Ln.text()
+        self.prog_sett_dic['REP_W'] = str(self._sett.rep_writeCh.checkState())
+        self.prog_sett_dic['AV_W'] = str(self._sett.av6_writeCh.checkState())
+        self.prog_sett_dic['SER'] = str(self._sett.mserialCh.checkState())
         self.prog_sett_dic['BOT'] = str(self._sett.botCh.checkState())
         # Пишем настройки программы в реестр
         aReg = ConnectRegistry(None, HKEY_CURRENT_USER)
@@ -146,6 +152,40 @@ class SettingsInit(QtWidgets.QFrame):
         aReg.Close()
         self.goWindow()
 
+    def voiceSett(self, name, rate):
+        # Voice settings
+        try:
+            voices = self.tts.getProperty('voices')
+            for voice in voices:
+                if voice.name == name:
+                    self.tts.setProperty('voice', voice.id)
+                    self.tts.setProperty('rate', rate)
+        except ValueError:
+            self.tts.setProperty('Aleksandr', voice.id)
+            self.voicePlay("Проверьте настройки!")
+
+    def voiceTest(self):
+        name = self._sett.voice_nameLn.text()
+        self.prog_sett_dic['VOICE_NAME'] = name
+        rate = self._sett.voice_rateLn.text()
+        self.voiceSett(name, int(rate))
+
+        self.voicePlay('Да здравствует первое мая!')
+
+    def voicePlay(self, text):
+        if self.prog_sett_dic['VOICE_NAME'] != '0':
+            self.tts.say(text)
+            try:
+                self.tts.runAndWait()
+            except RuntimeError:
+                pass
+        else:
+            pass
+
+    def musicPlay(self, file):
+        mixer.music.load(file)
+        mixer.music.play()
+
     def stationChange(self):
         self.prog_sett_dic['STATION'] = self._sett.stationBx.currentText()
         aReg = ConnectRegistry(None, HKEY_CURRENT_USER)
@@ -153,11 +193,6 @@ class SettingsInit(QtWidgets.QFrame):
         SetValueEx(nKey, 'STATION', 0, REG_SZ, self.prog_sett_dic['STATION'])
         aReg.Close()
         self.readSettings()
-
-    def sndTest(self):
-        mixer.init()
-        mixer.music.load(self.prog_sett_dic['SNDPATH'])
-        mixer.music.play()
 
     def help(self):
         self.w = QtWidgets.QMainWindow()
@@ -170,7 +205,7 @@ class SettingsInit(QtWidgets.QFrame):
         self.win.exit.clicked.connect(self.w.close)
 
     def goWindow(self):
-        VoicePlay('Уже всЁ настроил? Ну ты красавчик')
+        self.voicePlay('Уже всЁ настроил? Ну ты красавчик')
         self.close()
         Window().show()
 
@@ -263,11 +298,12 @@ class Window(QtWidgets.QMainWindow):
             self.bot_value = {}
             self.bot_error = {}
             self.snd_play = 0
+            self._si.voicePlay(f"К вашим услугам {self.prog_sett['VOICE_NAME']}. Желаю удачи")
         except Exception as e:
             Sens.logWrite(self, e)
 
     def goStart(self):
-        VoicePlay('Запускаемся. От винта!!!')
+        self._si.voicePlay('Запускаемся. От винта!!!')
         self.pause = False
         self.lineColor = 1
         self._wdw.start.setText("Пауза")
@@ -289,7 +325,7 @@ class Window(QtWidgets.QMainWindow):
         self.main()
 
     def statPause(self):
-        VoicePlay('Астанавиите, Вите надо выйти')
+        self._si.voicePlay('Астанавиите, Вите надо выйти')
         self.pause = True
         self._wdw.start.setText("Пуск")
         self._wdw.start.setStyleSheet(self.red)
@@ -380,10 +416,11 @@ class Window(QtWidgets.QMainWindow):
             if self._wdw.btn.isChecked():
                 pass
             elif self.snd_play > 0:
-                VoicePlay(self.snd_text)
-                # mixer.init()
-                # mixer.music.load(self.prog_sett['SNDPATH'])
-                # mixer.music.play()
+                if self.prog_sett['SNDPATH'] == '':
+                    self._si.voicePlay(self.snd_text)
+                else:
+                    self._si.musicPlay(self.prog_sett['SNDPATH'])
+
         QTimer.singleShot(5000, self.sndPlay)
 
     def dtimeTick(self):
@@ -396,8 +433,7 @@ class Window(QtWidgets.QMainWindow):
                     path = s['AVPATH']
                     av = Av6(path)
                     self._wdw.infoLn1.setText(av.av6_rep)
-                    tts.say(av.av6_rep)
-                    tts.runAndWait()
+                    self._si.voicePlay(av.av6_rep)
             if s['REP_W'] == '2' or s['REP_W'] == '1':
                 repW = "Вкл"
             else:
@@ -427,13 +463,11 @@ class Window(QtWidgets.QMainWindow):
 
     def putty(self, n):
         subprocess.Popen(['putty.exe', '-load', n])
-        tts.say('Подключаемся')
-        tts.runAndWait()
+        self._si.voicePlay('Подключаемся')
 
     def openRep(self):
         subprocess.Popen(['notepad.exe', r'LOGs\maintReport.txt'])
-        tts.say('Вот тебе отчет')
-        tts.runAndWait()
+        self._si.voicePlay('Вот тебе отчет')
 
     def openLog(self):
         subprocess.Popen(['notepad.exe', r'LOGs\maintLog.txt'])
@@ -444,36 +478,34 @@ class Window(QtWidgets.QMainWindow):
                 proc = 'Mserial.exe' in (p.name() for p in psutil.process_iter())
                 if not proc:
                     subprocess.Popen('Mserial.exe')
-                    tts.say('Запускаю опрос портов')
-                    tts.runAndWait()
+                    self._si.voicePlay('Запускаю опрос портов')
             QTimer.singleShot(3000, self.serInit)
         except FileNotFoundError as e:
             Sens.logWrite(self, e)
 
     def botInit(self):
-        pass
-        # if not self.pause:
-        #     data = {'status': self.bot_status, 'value': self.bot_value, 'error': self.bot_error}
-        #     with open(r'c:\Users\Meteoaza\PycharmProjects\myBot\DATA\bot_data.txt', 'w')as f:
-        #         f.write(str(data))
+        if not self.pause:
+            data = {'status': self.bot_status, 'value': self.bot_value, 'error': self.bot_error}
+            with open(r'bot_data.txt', 'w')as f:
+                f.write(str(data))
         #     # try:
         #     #     bot_proc = 'bot.exe' in (p.name() for p in psutil.process_iter())
         #     #     if not bot_proc:
         #     #         subprocess.Popen(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot.exe')
         #     # except FileNotFoundError:
         #     #     pass
-        # QTimer.singleShot(3000, self.botInit)
+        QTimer.singleShot(3000, self.botInit)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
-            VoicePlay('Дасвидоос')
+            self._si.voicePlay('Дасвидоос')
             self.close()
 
     def goSett(self):
         self.statPause()
         self.close()
         SettingsInit().show()
-        VoicePlay('Хочешь поковырять настройки?')
+        self._si.voicePlay('Хочешь поковырять настройки?')
 
 
 class Sens():
