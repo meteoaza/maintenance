@@ -1,9 +1,9 @@
 import os
 import subprocess
 import sys
+import json
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from shutil import copyfile as cp
 from winreg import *
 
@@ -32,7 +32,7 @@ class SettingsInit(QtWidgets.QFrame):
         self._sett.stationBx.addItems([' ', 'UCFM', 'UCFO'])
         self.prog_sett_list = [
             'STATION', 'PATH', 'SNDPATH', 'VOICE_NAME', 'VOICE_RATE', 'DUR',
-            'REFRESH', 'AVPATH', 'AV_T1', 'AV_T2', 'REP_W', 'AV_W', 'SER','BOT'
+            'REFRESH', 'AVPATH', 'AV_T1', 'AV_T2', 'REP_W', 'AV_W', 'SER', 'BOT','VOICE_ON'
         ]
         self.sens_sett_list = [
             'CLD1', 'CLD2', 'CLD3', 'CLD4', 'VIS1', 'VIS2', 'VIS3',
@@ -65,7 +65,7 @@ class SettingsInit(QtWidgets.QFrame):
                     v = '0'
                 self.prog_sett_dic[k] = v
         except (ValueError, FileNotFoundError)as e:
-            Sens.logWrite(self, e)
+            Report('readSettings' + sys.exc_info()).logWrite()
         self._sett.sens_addBx.addItems([' ', *self.sens_sett_list])
         # Читаем настройки датчиков
         try:
@@ -77,7 +77,7 @@ class SettingsInit(QtWidgets.QFrame):
                     v = ''
                 self.sens_sett_dic[k] = v.upper()
         except (ValueError, FileNotFoundError) as e:
-            Sens.logWrite(self, e)
+            Report('readSettings_2' + sys.exc_info()).logWrite()
         # Выводим текст настроек в Settings
         try:
             self._sett.stationLb.setText(self.prog_sett_dic['STATION'])
@@ -94,8 +94,9 @@ class SettingsInit(QtWidgets.QFrame):
             self._sett.av6_writeCh.setCheckState(int(self.prog_sett_dic['AV_W']))
             self._sett.mserialCh.setCheckState(int(self.prog_sett_dic['SER']))
             self._sett.botCh.setCheckState(int(self.prog_sett_dic['BOT']))
+            self._sett.voice_onCh.setCheckState(int(self.prog_sett_dic['VOICE_ON']))
         except KeyError as e:
-            Sens.logWrite(self, e)
+            Report('readSettings_3' + sys.exc_info()).logWrite()
         self.viewSens()
         self.voiceSett(self.prog_sett_dic['VOICE_NAME'], int(self.prog_sett_dic['VOICE_RATE']))
 
@@ -134,6 +135,7 @@ class SettingsInit(QtWidgets.QFrame):
         self.prog_sett_dic['AV_W'] = str(self._sett.av6_writeCh.checkState())
         self.prog_sett_dic['SER'] = str(self._sett.mserialCh.checkState())
         self.prog_sett_dic['BOT'] = str(self._sett.botCh.checkState())
+        self.prog_sett_dic['VOICE_ON'] = str(self._sett.voice_onCh.checkState())
         # Пишем настройки программы в реестр
         aReg = ConnectRegistry(None, HKEY_CURRENT_USER)
         try:
@@ -141,14 +143,14 @@ class SettingsInit(QtWidgets.QFrame):
             for k, v in self.prog_sett_dic.items():
                 SetValueEx(nKey, k, 0, REG_SZ, v)
         except Exception as e:
-            Sens.logWrite(self, e)
+            Report('writeSettings' + sys.exc_info()).logWrite()
         # Пишем настройки датчиков в реестр
         try:
             nKey = CreateKeyEx(aReg, r'Software\IRAM\MAINT\SENSETT', 0, KEY_ALL_ACCESS)
             for k, v in self.sens_sett_dic.items():
                 SetValueEx(nKey, k, 0, REG_SZ, str(v))
         except Exception as e:
-            Sens.logWrite(self, e)
+            Report('writeSettings_2' + sys.exc_info()).logWrite()
         aReg.Close()
         self.goWindow()
 
@@ -161,6 +163,7 @@ class SettingsInit(QtWidgets.QFrame):
                     self.tts.setProperty('voice', voice.id)
                     self.tts.setProperty('rate', rate)
         except ValueError:
+            Report('voiceSett' + sys.exc_info()).logWrite()
             self.tts.setProperty('Aleksandr', voice.id)
             self.voicePlay("Проверьте настройки!")
 
@@ -169,11 +172,10 @@ class SettingsInit(QtWidgets.QFrame):
         self.prog_sett_dic['VOICE_NAME'] = name
         rate = self._sett.voice_rateLn.text()
         self.voiceSett(name, int(rate))
-
         self.voicePlay('Да здравствует первое мая!')
 
     def voicePlay(self, text):
-        if self.prog_sett_dic['VOICE_NAME'] != '0':
+        if self.prog_sett_dic['VOICE_ON'] != '0':
             self.tts.say(text)
             try:
                 self.tts.runAndWait()
@@ -183,8 +185,9 @@ class SettingsInit(QtWidgets.QFrame):
             pass
 
     def musicPlay(self, file):
-        mixer.music.load(file)
-        mixer.music.play()
+        if self.prog_sett_dic['SNDPATH'] != '':
+            mixer.music.load(file)
+            mixer.music.play()
 
     def stationChange(self):
         self.prog_sett_dic['STATION'] = self._sett.stationBx.currentText()
@@ -300,7 +303,7 @@ class Window(QtWidgets.QMainWindow):
             self.snd_play = 0
             self._si.voicePlay(f"К вашим услугам {self.prog_sett['VOICE_NAME']}. Желаю удачи")
         except Exception as e:
-            Sens.logWrite(self, e)
+            Report('_init_' + sys.exc_info()).logWrite()
 
     def goStart(self):
         self._si.voicePlay('Запускаемся. От винта!!!')
@@ -335,9 +338,9 @@ class Window(QtWidgets.QMainWindow):
     def main(self):
         if not self.pause:
             try:
-                self. bot_status = {}
+                self.bot_status = {}
                 self.bot_value = {}
-                self.bot_error ={}
+                self.bot_error = {}
                 self.snd_play = 0
                 for sens in self.senS.keys():
                     prog = self.prog_sett
@@ -399,7 +402,7 @@ class Window(QtWidgets.QMainWindow):
                         value.setStyleSheet(self.blue)
                     self.bot_value.update({sensor: s.value})
             except ValueError as e:
-                Sens.logWrite(self, e)
+                Report('main' + sys.exc_info()).logWrite()
             if self.lineColor == 1:
                 self.lineColor -= 1
                 self._wdw.infoLn2.setStyleSheet(self.blue)
@@ -481,13 +484,13 @@ class Window(QtWidgets.QMainWindow):
                     self._si.voicePlay('Запускаю опрос портов')
             QTimer.singleShot(3000, self.serInit)
         except FileNotFoundError as e:
-            Sens.logWrite(self, e)
+            Report('serInit' + sys.exc_info()).logWrite()
 
     def botInit(self):
         if not self.pause:
             data = {'status': self.bot_status, 'value': self.bot_value, 'error': self.bot_error}
-            with open(r'bot_data.txt', 'w')as f:
-                f.write(str(data))
+            with open(r'bot_data.json', 'w')as file:
+                json.dump(data, file, indent=2, ensure_ascii=False)
         #     # try:
         #     #     bot_proc = 'bot.exe' in (p.name() for p in psutil.process_iter())
         #     #     if not bot_proc:
@@ -516,7 +519,7 @@ class Sens():
         self.dur = int(kwargs['dur'])
         self.rep = kwargs['rep']
         self.mute = kwargs['mute']
-        self.LOGs = "0"
+        self.dift = 0
 
     def checkTime(self, f):
         # Check time and write time difference to dift
@@ -549,7 +552,7 @@ class Sens():
                 except ValueError as e:
                     stat = tek_f.split()[6]
                     self.value = tek_f.split()[4]
-                    self.logWrite(self.sens + " ValueError " + str(e) + " " + tek_f)
+                    Report('ltInit' + sys.exc_info() + tek_f).logWrite()
                 battery = stat[2]
                 # Проверка ошибок и вывод результата
                 if battery == '1' and stat[0] == 'I' or battery == '2' and stat[0] == 'I':
@@ -575,7 +578,7 @@ class Sens():
                     self.error = 0
             if self.error != 0:
                 if not self.mute:
-                    self.repWrite(self.status)
+                    Report(self.status, self.rep).repWrite()
         except FileNotFoundError as e:
             self.status = str(self.sens + " Не найден файл с данными!!!")
             self.error = 3
@@ -588,6 +591,7 @@ class Sens():
             self.status = str(self.sens + " Ошибка !!!")
             self.error = 0
             self.value = "-----"
+        return self.status, self.value, self.error
 
     def clInit(self):
         try:
@@ -613,11 +617,11 @@ class Sens():
                 except ValueError as e:
                     stat = tek_f.split()[7]
                     self.value = tek_f.split()[4]
-                    self.logWrite(self.sens + " ValueError " + str(e) + tek_f)
+                    Report('clInit' + sys.exc_info() + tek_f).logWrite()
                 battery = stat[5::3]
                 norm = '0000'
                 # Проверка ошибок и вывод результата
-                if battery == '4' and stat[:4] == (norm):
+                if battery == '4' and stat[:4] == norm:
                     self.status = str(self.sens + ' Внимание!!! Работа от батареи!!!')
                     self.error = 2
                 elif stat[:4] == (norm):
@@ -628,7 +632,7 @@ class Sens():
                     self.error = 1
             if self.error != 0:
                 if not self.mute:
-                    self.repWrite(self.status)
+                    Report(self.status, self.rep).repWrite()
         except FileNotFoundError as e:
             self.status = str(self.sens + " Не найден файл с данными !!!")
             self.error = 3
@@ -641,6 +645,7 @@ class Sens():
             self.status = str(self.sens + " Ошибка !!!")
             self.error = 0
             self.value = "-----"
+        return self.status, self.value, self.error
 
     def wtInit(self):
         try:
@@ -664,14 +669,14 @@ class Sens():
                     dd = float(tek_f.split()[4][:3])
                     ff = float(tek_f.split()[5])
                     self.value = (str(dd)[:-2] + " / " + str(ff))
-                    self.logWrite(self.sens + " ValueError " + str(e) + " " + tek_f)
+                    Report('ltInit' + sys.exc_info() + tek_f).logWrite()
                 stat = "OK"
                 # Проверка ошибок и вывод результата
                 self.status = (self.sens + " " + stat)
                 self.error = 0
             if self.error != 0:
                 if not self.mute:
-                    self.repWrite(self.status)
+                    Report(self.status, self.rep).repWrite()
         except FileNotFoundError as e:
             self.status = str(self.sens + " Не найден файл с данными !!!")
             self.error = 3
@@ -684,6 +689,7 @@ class Sens():
             self.status = str(self.sens + " Ошибка !!!")
             self.error = 0
             self.value = "-----"
+        return self.status, self.value, self.error
 
     def tempInit(self):
         try:
@@ -698,6 +704,7 @@ class Sens():
                     self.value = f.read().split()[3]
         except Exception as e:
             self.value = "ERROR"
+        return self.value
 
     def presInit(self):
         try:
@@ -712,27 +719,7 @@ class Sens():
                     self.value = f.read().split()[3]
         except Exception as e:
             self.value = "ERROR"
-
-    def repWrite(self, r):
-        if self.rep != "0":
-            try:
-                if not os.path.exists('LOGs'):
-                    os.mkdir('LOGs')
-                t = datetime.strftime(datetime.now(), "%d-%m-%y %H:%M:%S")
-                with open(r'LOGs\maintReport.txt', 'a', encoding='utf-8') as f_rep:
-                    f_rep.write(t + " " + r + "\n")
-            except Exception as e:
-                self.LOGs = str(e)
-
-    def logWrite(self, e):
-        try:
-            if not os.path.exists('LOGs'):
-                os.mkdir('LOGs')
-            t = datetime.strftime(datetime.now(), "%d-%m-%y %H:%M:%S")
-            with open(r'LOGs\maintLog.txt', 'a', encoding='utf-8') as f_bug:
-                f_bug.write(t + " " + str(e) + "\n")
-        except Exception as e:
-            self.LOGs = str(e)
+        return self.value
 
 
 class Av6():
@@ -753,8 +740,7 @@ class Av6():
             self.arh_dst_dir = f'AV6_ARH\{self.year}\{self.month}\{self.day}'
             self.arhCopy()
         except Exception as e:
-            Sens.logWrite(self, e)
-            self.LOGs = str(e)
+            Report('Av6_1' + sys.exc_info()).logWrite()
 
     def arhCopy(self):
         try:
@@ -768,12 +754,11 @@ class Av6():
                     self.av6Rep(self.hour[:2] + ':' + self.hour[2:] + ' Файл АВ-6 успешно записан!')
                 except Exception as e:
                     self.av6Rep(self.hour[:2] + ':' + self.hour[2:] + ' Файл АВ-6 не записан!')
-                    Sens.logWrite(self, e)
+                    Report('Av6_2' + sys.exc_info()).logWrite()
             else:
                 self.av6Rep(self.hour[:2] + ':' + self.hour[2:] + ' Исходник АВ-6 не найден!')
         except Exception as e:
-            Sens.logWrite(self, e)
-            self.LOGs = str(e)
+            Report('Av6_3' + sys.exc_info()).logWrite()
 
     def av6Rep(self, r):
         self.av6_rep = r
@@ -783,8 +768,34 @@ class Av6():
             with open(r'LOGs\av6Report.txt', 'a', encoding='utf-8') as f_rep:
                 f_rep.write(r + "\n")
         except Exception as e:
-            Sens.logWrite(self, e)
-            self.LOGs = str(e)
+            Report('Av6_4' + sys.exc_info()).logWrite()
+
+
+class Report():
+    def __init__(self, rep, rep_sett='0'):
+        self.rep = rep
+        self.rep_sett = rep_sett
+
+    def repWrite(self):
+        if self.rep_sett != "0":
+            try:
+                if not os.path.exists('LOGs'):
+                    os.mkdir('LOGs')
+                t = datetime.strftime(datetime.now(), "%d-%m-%y %H:%M:%S")
+                with open(r'LOGs\maintReport.txt', 'a', encoding='utf-8') as f_rep:
+                    f_rep.write(t + " " + self.rep + "\n")
+            except Exception as e:
+                self.logWrite('Report' + sys.exc_info())
+
+    def logWrite(self):
+        try:
+            if not os.path.exists('LOGs'):
+                os.mkdir('LOGs')
+            t = datetime.strftime(datetime.now(), "%d-%m-%y %H:%M:%S")
+            with open(r'LOGs\maintLog.txt', 'a', encoding='utf-8') as f_bug:
+                f_bug.write(t + " " + self.rep + "\n")
+        except Exception as e:
+            pass
 
 
 if __name__ == "__main__":
